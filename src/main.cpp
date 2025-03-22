@@ -21,12 +21,14 @@
 #define LED_PIN 13
 bool blinkState = false;
 
+void readMPU6050();
+
 MPU6050Handler mpu;
 PeriodicTask sensorTask(100, readMPU6050);
 
-void readMPU6050();
-
 void setup() {
+    
+    Serial.println("Setup Started!");
     
     if (!mpu.initialize()) {
         Serial.println("Erreur : Échec de connexion au MPU6050 !");
@@ -35,6 +37,7 @@ void setup() {
 
     // configure Arduino LED pin for output
     pinMode(LED_PIN, OUTPUT);
+    Serial.println("Setup Completed!");
 }
 
 void loop() {
