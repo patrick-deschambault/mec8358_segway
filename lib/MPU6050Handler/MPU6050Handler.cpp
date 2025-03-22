@@ -3,12 +3,12 @@
 MPU6050Handler::MPU6050Handler() {}
 
 bool MPU6050Handler::initialize() {
-    Wire.begin();
+
+    Serial.begin(9600);
+
+    // initialize device
+    Serial.println("Initializing I2C devices...");
     mpu.initialize();
-    
-    if (!mpu.testConnection()) {
-        return false; // Échec de connexion
-    }
 
     // join I2C bus (I2Cdev library doesn't do this automatically)
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -17,7 +17,11 @@ bool MPU6050Handler::initialize() {
     Fastwire::setup(400, true);
     #endif
     
-    mpu.initialize();
+    // verify connection
+    Serial.println("Testing device connections...");
+    if (!mpu.testConnection()) {
+        return false; // Échec de connexion
+    }
 
     return true; // Connexion réussie
 }
