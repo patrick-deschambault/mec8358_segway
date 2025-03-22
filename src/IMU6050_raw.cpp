@@ -7,11 +7,6 @@
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
 #endif
-
-MPU6050Handler mpu;
-
-float roll, pitch, heading;
-
 // uncomment "OUTPUT_READABLE_ACCELGYRO" if you want to see a tab-separated
 // list of the accel X/Y/Z and then gyro X/Y/Z values in decimal. Easy to read,
 // not so easy to parse, and slow(er) over UART.
@@ -26,6 +21,9 @@ float roll, pitch, heading;
 #define LED_PIN 13
 bool blinkState = false;
 
+MPU6050Handler mpu;
+PeriodicTask sensorTask(100, readMPU6050);
+
 void readMPU6050();
 
 void setup() {
@@ -38,8 +36,6 @@ void setup() {
     // configure Arduino LED pin for output
     pinMode(LED_PIN, OUTPUT);
 }
-
-PeriodicTask sensorTask(100, readMPU6050);
 
 void loop() {
 
