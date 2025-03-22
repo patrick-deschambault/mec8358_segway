@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 # Configuration du port série (remplace 'COM4' par ton port si besoin)
-ser = serial.Serial('COM4', 9600, timeout=1)
+ser = serial.Serial('COM4', 115200, timeout=1)
 
 # Initialisation du graphique
 fig, ax = plt.subplots()

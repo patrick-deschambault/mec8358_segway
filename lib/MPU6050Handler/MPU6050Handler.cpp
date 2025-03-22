@@ -4,7 +4,7 @@ MPU6050Handler::MPU6050Handler() {}
 
 bool MPU6050Handler::initialize() {
 
-    Serial.begin(9600);
+    Serial.begin(115200);
 
     // initialize device
     Serial.println("Initializing I2C devices...");
