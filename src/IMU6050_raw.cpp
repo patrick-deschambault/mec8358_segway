@@ -53,11 +53,8 @@ MPU6050 accelgyro;
 
 Madgwick filter;
 
-int16_t ax_raw, ay_raw, az_raw;
-int16_t gx_raw, gy_raw, gz_raw;
-
-float ax, ay, az;
-float gx, gy, gz;
+int16_t ax, ay, az;
+int16_t gx, gy, gz;
 
 float roll, pitch, heading;
 
@@ -75,9 +72,6 @@ float roll, pitch, heading;
 
 #define LED_PIN 13
 bool blinkState = false;
-
-float convertRawAcceleration(int aRaw);
-float convertRawGyro(int gRaw);
 
 void setup() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -129,15 +123,7 @@ void setup() {
 
 void loop() {
     // read raw accel/gyro measurements from device
-    accelgyro.getMotion6(&ax_raw, &ay_raw, &az_raw, &gx_raw, &gy_raw, &gz_raw);
-
-    ax = convertRawAcceleration(ax_raw);
-    ay = convertRawAcceleration(ay_raw);
-    az = convertRawAcceleration(az_raw);
-
-    gx = convertRawGyro(gx_raw);
-    gy = convertRawGyro(gy_raw);
-    gz = convertRawGyro(gz_raw);
+    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
     filter.updateIMU(gx, gy, gz, ax, ay, az);
 
@@ -146,8 +132,6 @@ void loop() {
     //accelgyro.getRotation(&gx, &gy, &gz);
 
     #ifdef OUTPUT_READABLE_ACCELGYRO
-
-
         roll = filter.getRoll();
         pitch = filter.getPitch();
         heading = filter.getYaw();
@@ -172,21 +156,3 @@ void loop() {
     digitalWrite(LED_PIN, blinkState);
     delay(100);
 }
-
-float convertRawAcceleration(int aRaw) {
-    // since we are using 2 g range
-    // -2 g maps to a raw value of -32768
-    // +2 g maps to a raw value of 32767
-    
-    //float a = (aRaw * 2.0) / 32768.0;
-    return aRaw;
-  }
-  
-  float convertRawGyro(int gRaw) {
-    // since we are using 250 degrees/seconds range
-    // -250 maps to a raw value of -32768
-    // +250 maps to a raw value of 32767
-    
-    //float g = (gRaw * 250.0) / 32768.0;
-    return gRaw;
-  }
