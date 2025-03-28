@@ -25,7 +25,7 @@ bool blinkState = false;
 void readMPU6050();
 
 MPU6050Handler mpu;
-PeriodicTask sensorTask(100, readMPU6050);
+PeriodicTask sensorTask(5, readMPU6050);
 
 void setup() {
     
@@ -54,20 +54,8 @@ void readMPU6050() {
 
     Orientation pose = mpu.orientation();
 
-    #ifdef OUTPUT_READABLE_ACCELGYRO
+    Serial.print(pose.roll().degree()); Serial.print("\t");
+    Serial.print(pose.pitch().degree()); Serial.print("\t");
+    Serial.println(pose.yaw().degree());
 
-        // display tab-separated accel/gyro x/y/z values
-        Serial.print(pose.roll().degree()); Serial.print("\t");
-        Serial.print(pose.pitch().degree()); Serial.print("\t");
-        Serial.println(pose.yaw().degree());
-    #endif
-
-    // #ifdef OUTPUT_BINARY_ACCELGYRO
-    //     Serial.write((uint8_t)(ax >> 8)); Serial.write((uint8_t)(ax & 0xFF));
-    //     Serial.write((uint8_t)(ay >> 8)); Serial.write((uint8_t)(ay & 0xFF));
-    //     Serial.write((uint8_t)(az >> 8)); Serial.write((uint8_t)(az & 0xFF));
-    //     Serial.write((uint8_t)(gx >> 8)); Serial.write((uint8_t)(gx & 0xFF));
-    //     Serial.write((uint8_t)(gy >> 8)); Serial.write((uint8_t)(gy & 0xFF));
-    //     Serial.write((uint8_t)(gz >> 8)); Serial.write((uint8_t)(gz & 0xFF));
-    // #endif
 }
