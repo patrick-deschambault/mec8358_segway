@@ -1,11 +1,13 @@
 #ifndef MPU6050_HANDLER_H
 #define MPU6050_HANDLER_H
 
+#define RESTRICT_PITCH // Comment out to restrict roll to ±90deg instead - please read: http://www.freescale.com/files/sensors/doc/app_note/AN3461.pdf
+
 #include <Wire.h>
+#include <I2Cdev.h>
 #include <MPU6050.h>
 #include <MadgwickAHRS.h>
-
-
+#include "Kalman.h"
 
 struct ZeroData {
     // Constantes
@@ -79,10 +81,18 @@ class Orientation {
 class MPU6050Handler {
 private:
     MPU6050 mpu;
-    Madgwick filter;
 
-    int16_t ax, ay, az;
-    int16_t gx, gy, gz;
+    Kalman kalmanX; // Create the Kalman instances
+    Kalman kalmanY;
+
+    uint32_t timer;
+    uint8_t i2cData[14]; // Buffer for I2C data
+    int16_t tempRaw;
+    double accX, accY, accZ;
+    double gyroX, gyroY, gyroZ;
+    double gyroXangle, gyroYangle; // Angle calculate using the gyro only
+    double compAngleX, compAngleY; // Calculated angle using a complementary filter
+    double kalAngleX, kalAngleY; // Calculated angle using a Kalman filter
 
 public:
     MPU6050Handler(); 

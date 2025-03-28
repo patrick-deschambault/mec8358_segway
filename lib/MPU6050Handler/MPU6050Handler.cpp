@@ -1,37 +1,152 @@
 #include "MPU6050Handler.h"
 
+void i2cWrite(uint8_t address, uint8_t* data, uint8_t length) {
+  Wire.beginTransmission(address);
+  Wire.write(data, length);
+  Wire.endTransmission();
+}
+
+void i2cWrite(uint8_t address, uint8_t data) {
+  Wire.beginTransmission(address);
+  Wire.write(data);
+  Wire.endTransmission();
+}
+
+void i2cRead(uint8_t address, uint8_t reg, uint8_t* data, uint8_t length) {
+  Wire.beginTransmission(address);
+  Wire.write(reg);
+  Wire.endTransmission(false); // Envoi sans stopper la communication
+
+  Wire.requestFrom(address, length);
+  for (uint8_t i = 0; i < length; i++) {
+      data[i] = Wire.read();
+  }
+}
+
+
 MPU6050Handler::MPU6050Handler() {}
 
 bool MPU6050Handler::initialize() {
 
-    Serial.begin(115200);
+  Serial.begin(115200);
+  Wire.begin();
 
-    // initialize device
-    Serial.println("Initializing I2C devices...");
-    mpu.initialize();
+#if ARDUINO >= 157
+  Wire.setClock(400000UL); // Set I2C frequency to 400kHz
+#else
+  TWBR = ((F_CPU / 400000UL) - 16) / 2; // Set I2C frequency to 400kHz
+#endif
 
-    // join I2C bus (I2Cdev library doesn't do this automatically)
-    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-    Wire.begin();
-    #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-    Fastwire::setup(400, true);
-    #endif
-    
-    // verify connection
-    Serial.println("Testing device connections...");
-    if (!mpu.testConnection()) {
-        return false; // Échec de connexion
-    }
+  // Configuration du capteur
+  i2cData[0] = 7;    // Set the sample rate to 1000Hz - 8kHz/(7+1) = 1000Hz
+  i2cData[1] = 0x00; // Disable FSYNC and set 260 Hz Acc filtering, 256 Hz Gyro filtering, 8 KHz sampling
+  i2cData[2] = 0x00; // Set Gyro Full Scale Range to ±250deg/s
+  i2cData[3] = 0x00; // Set Accelerometer Full Scale Range to ±2g
+  i2cWrite(0x19, i2cData, 4);
 
-    return true; // Connexion réussie
+  i2cWrite(0x6B, 0x01); // PLL with X axis gyroscope reference and disable sleep mode
+
+  // Vérification du capteur
+  i2cRead(0x68, 0x75, i2cData, 1); // Lire le registre WHO_AM_I (0x75)
+  if (i2cData[0] != 0x68) {
+      Serial.print(F("Error reading sensor"));
+      while (1);
+  }
+
+  delay(100); // Attente pour stabilisation du capteur
+
+  // Lecture des valeurs initiales de l'accéléromètre
+  i2cRead(0x68, 0x3B, i2cData, 6);
+  accX = (int16_t)((i2cData[0] << 8) | i2cData[1]);
+  accY = (int16_t)((i2cData[2] << 8) | i2cData[3]);
+  accZ = (int16_t)((i2cData[4] << 8) | i2cData[5]);
+
+  // Calcul de l'angle initial
+#ifdef RESTRICT_PITCH
+  double roll  = atan2(accY, accZ) * RAD_TO_DEG;
+  double pitch = atan(-accX / sqrt(accY * accY + accZ * accZ)) * RAD_TO_DEG;
+#else
+  double roll  = atan(accY / sqrt(accX * accX + accZ * accZ)) * RAD_TO_DEG;
+  double pitch = atan2(-accX, accZ) * RAD_TO_DEG;
+#endif
+
+  kalmanX.setAngle(roll); // Initialisation du Kalman filter
+  kalmanY.setAngle(pitch);
+  gyroXangle = roll;
+  gyroYangle = pitch;
+  compAngleX = roll;
+  compAngleY = pitch;
+
+  timer = micros();
+
+  return true;
 }
 
 Orientation MPU6050Handler::orientation() {
 
-    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    filter.updateIMU(gx, gy, gz, ax, ay, az);
+    /* Update all the values */
+  i2cRead(0x68, 0x3B, i2cData, 14);
 
-    return Orientation(filter.getRoll(), filter.getPitch(), filter.getYaw());
+  accX = (int16_t)((i2cData[0] << 8) | i2cData[1]);
+  accY = (int16_t)((i2cData[2] << 8) | i2cData[3]);
+  accZ = (int16_t)((i2cData[4] << 8) | i2cData[5]);
+  tempRaw = (int16_t)((i2cData[6] << 8) | i2cData[7]);
+  gyroX = (int16_t)((i2cData[8] << 8) | i2cData[9]);
+  gyroY = (int16_t)((i2cData[10] << 8) | i2cData[11]);
+  gyroZ = (int16_t)((i2cData[12] << 8) | i2cData[13]);
+
+  double dt = (double)(micros() - timer) / 1000000;
+  timer = micros();
+
+  #ifdef RESTRICT_PITCH
+  double roll  = atan2(accY, accZ) * RAD_TO_DEG;
+  double pitch = atan(-accX / sqrt(accY * accY + accZ * accZ)) * RAD_TO_DEG;
+  #else
+  double roll  = atan(accY / sqrt(accX * accX + accZ * accZ)) * RAD_TO_DEG;
+  double pitch = atan2(-accX, accZ) * RAD_TO_DEG;
+  #endif
+
+  double gyroXrate = gyroX / 131.0;
+  double gyroYrate = gyroY / 131.0;
+
+  #ifdef RESTRICT_PITCH
+  if ((roll < -90 && kalAngleX > 90) || (roll > 90 && kalAngleX < -90)) {
+      kalmanX.setAngle(roll);
+      compAngleX = roll;
+      kalAngleX = roll;
+      gyroXangle = roll;
+  } else
+      kalAngleX = kalmanX.getAngle(roll, gyroXrate, dt);
+
+  if (abs(kalAngleX) > 90)
+      gyroYrate = -gyroYrate;
+  kalAngleY = kalmanY.getAngle(pitch, gyroYrate, dt);
+  #else
+  if ((pitch < -90 && kalAngleY > 90) || (pitch > 90 && kalAngleY < -90)) {
+      kalmanY.setAngle(pitch);
+      compAngleY = pitch;
+      kalAngleY = pitch;
+      gyroYangle = pitch;
+  } else
+      kalAngleY = kalmanY.getAngle(pitch, gyroYrate, dt);
+
+  if (abs(kalAngleY) > 90)
+      gyroXrate = -gyroXrate;
+  kalAngleX = kalmanX.getAngle(roll, gyroXrate, dt);
+  #endif
+
+  gyroXangle += gyroXrate * dt;
+  gyroYangle += gyroYrate * dt;
+
+  compAngleX = 0.93 * (compAngleX + gyroXrate * dt) + 0.07 * roll;
+  compAngleY = 0.93 * (compAngleY + gyroYrate * dt) + 0.07 * pitch;
+
+  if (gyroXangle < -180 || gyroXangle > 180)
+      gyroXangle = kalAngleX;
+  if (gyroYangle < -180 || gyroYangle > 180)
+      gyroYangle = kalAngleY;
+
+  return Orientation(Angle(kalAngleX), Angle(kalAngleY), Angle(0));
 }
 
 void MPU6050Handler::zero() {
