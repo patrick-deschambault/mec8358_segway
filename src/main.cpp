@@ -78,7 +78,7 @@ void setup() {
     pinMode(pwmPin[1], OUTPUT);
 
     pinMode(encoderPin, INPUT);
-    attachInterrupt(digitalPinToInterrupt(encoderPin), encoderCount, RISING);  // Détection du front montant
+    attachInterrupt(digitalPinToInterrupt(encoderPin), increaseEncoderCount, RISING);  // Détection du front montant
 
     Serial.println("Setup Completed!");
 }
