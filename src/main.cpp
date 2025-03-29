@@ -25,12 +25,19 @@ bool blinkState = false;
 void readMPU6050();
 void motorControl();
 
+const int interval_motor_task = 10;
+const int interval_mpu_task = 5;
+
+
 MPU6050Handler mpu;
-PeriodicTask mpuTask(5, readMPU6050);
+PeriodicTask mpuTask(interval_mpu_task, readMPU6050);
+PeriodicTask motorTask(interval_motor_task, motorControl);
+
 
 // Motor properties
 const float resolution = 600;
 float r = 0.04;
+const int voltage_max = 24;
 
 // Gains
 float K[4] = {-3, -6, -76, -4};
@@ -64,7 +71,7 @@ void setup() {
 
     // configure Arduino LED pin for output
     pinMode(LED_PIN, OUTPUT);
-    
+
     pinMode(dirPin[0], OUTPUT);
     pinMode(dirPin[1], OUTPUT);
     pinMode(pwmPin[0], OUTPUT);
@@ -79,6 +86,7 @@ void setup() {
 void loop() {
 
     mpuTask.update();
+    motorTask.update();
 
     // blink LED to indicate activity
     blinkState = !blinkState;
@@ -97,11 +105,19 @@ void readMPU6050() {
 
 void motorControl() {
 
+    position = position + ((encoderCount*2*PI*r) / (resolution));
+
+    speed = ((float)encoderCount * 1000.0 * 2.0 * PI * r) / (resolution * interval_motor_task);
+
+    angle = mpu.orientation().pitch().to_radians();
+
+    angular_vel = mpu.gyroYAngle().radians_per_sec();
+
     // Calcul de la commande
-    u = K[0]*position + K[1]*speed + K[2]*angle + K[3] * angular_vel;
+    u = K[0]*position + K[1]*speed + K[2]*angle + K[3]*angular_vel;
 
     // constrain(signal, 0, 255) 
-    int pwmValue = constrain(map(abs(u), 0, 7, 0, 255), 0, 255);
+    int pwmValue = constrain(map(abs(u), 0, voltage_max, 0, 255), 0, 255);
     pwm[0] = pwmValue;
     pwm[1] = pwmValue;
 
