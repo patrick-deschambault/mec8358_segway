@@ -28,13 +28,14 @@ void motorControl();
 MPU6050Handler mpu;
 PeriodicTask mpuTask(5, readMPU6050);
 
-
+// Motor properties
 const float resolution = 600;
 float r = 0.04;
 
+// Gains
 float K[4] = {-3, -6, -76, -4};
 
-// Commande
+// Commandes
 float u = 0;
 float pwm[2] = {0.0, 0.0};
 
@@ -47,6 +48,10 @@ float angular_vel = 0.0;
 // Pins d'entree
 const int pwmPin[2] = {10, 11};
 const int dirPin[2] = {8, 9};
+const int encoderPin = 2;
+
+// Status de l'encodeur optique
+int encoderCount = 0;
 
 void setup() {
     
@@ -59,6 +64,15 @@ void setup() {
 
     // configure Arduino LED pin for output
     pinMode(LED_PIN, OUTPUT);
+    
+    pinMode(dirPin[0], OUTPUT);
+    pinMode(dirPin[1], OUTPUT);
+    pinMode(pwmPin[0], OUTPUT);
+    pinMode(pwmPin[1], OUTPUT);
+
+    pinMode(encoderPin, INPUT);
+    attachInterrupt(digitalPinToInterrupt(encoderPin), encoderCount, RISING);  // Détection du front montant
+
     Serial.println("Setup Completed!");
 }
 
@@ -96,5 +110,10 @@ void motorControl() {
 
     analogWrite(pwmPin[0], pwm[0]);
     analogWrite(pwmPin[1], pwm[1]);
+
+    encoderCount = 0;
 }
 
+void increaseEncoderCount() {
+    encoderCount++;
+}
