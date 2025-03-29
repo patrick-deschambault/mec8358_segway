@@ -23,9 +23,30 @@
 bool blinkState = false;
 
 void readMPU6050();
+void motorControl();
 
 MPU6050Handler mpu;
-PeriodicTask sensorTask(5, readMPU6050);
+PeriodicTask mpuTask(5, readMPU6050);
+
+
+const float resolution = 600;
+float r = 0.04;
+
+float K[4] = {-3, -6, -76, -4};
+
+// Commande
+float u = 0;
+float pwm[2] = {0.0, 0.0};
+
+// Variables d'etat
+float position = 0.0;
+float speed = 0.0;
+float angle = 0.0;
+float angular_vel = 0.0;
+
+// Pins d'entree
+const int pwmPin[2] = {10, 11};
+const int dirPin[2] = {8, 9};
 
 void setup() {
     
@@ -43,7 +64,7 @@ void setup() {
 
 void loop() {
 
-    sensorTask.update();
+    mpuTask.update();
 
     // blink LED to indicate activity
     blinkState = !blinkState;
@@ -59,3 +80,21 @@ void readMPU6050() {
     Serial.println(pose.yaw().degree());
 
 }
+
+void motorControl() {
+
+    // Calcul de la commande
+    u = K[0]*position + K[1]*speed + K[2]*angle + K[3] * angular_vel;
+
+    // constrain(signal, 0, 255) 
+    int pwmValue = constrain(map(abs(u), 0, 7, 0, 255), 0, 255);
+    pwm[0] = pwmValue;
+    pwm[1] = pwmValue;
+
+    digitalWrite(dirPin[0], u <= 0);
+    digitalWrite(dirPin[1], u > 0);
+
+    analogWrite(pwmPin[0], pwm[0]);
+    analogWrite(pwmPin[1], pwm[1]);
+}
+
