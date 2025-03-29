@@ -149,6 +149,10 @@ Orientation MPU6050Handler::orientation() {
   return Orientation(Angle(kalAngleX), Angle(kalAngleY), Angle(0));
 }
 
+AngularVelocity MPU6050Handler::gyroYAngle() {
+  return AngularVelocity(gyroY);
+}
+
 void MPU6050Handler::zero() {
 
     ZeroData config;
