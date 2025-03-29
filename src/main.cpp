@@ -24,6 +24,7 @@ bool blinkState = false;
 
 void readMPU6050();
 void motorControl();
+void increaseEncoderCount();
 
 const int interval_motor_task = 10;
 const int interval_mpu_task = 5;
@@ -36,7 +37,7 @@ PeriodicTask motorTask(interval_motor_task, motorControl);
 
 // Motor properties
 const float resolution = 600;
-float r = 0.04;
+const float radius_m = 0.04;
 const int voltage_max = 24;
 
 // Gains
@@ -105,9 +106,9 @@ void readMPU6050() {
 
 void motorControl() {
 
-    position = position + ((encoderCount*2*PI*r) / (resolution));
+    position = position + ((encoderCount*2*PI*radius_m) / (resolution));
 
-    speed = ((float)encoderCount * 1000.0 * 2.0 * PI * r) / (resolution * interval_motor_task);
+    speed = ((float)encoderCount * 1000.0 * 2.0 * PI * radius_m) / (resolution * interval_motor_task);
 
     angle = mpu.orientation().pitch().to_radians();
 
