@@ -53,6 +53,23 @@ class Angle {
     float degree() {
         return angle_deg;
     };
+    float to_radians() {
+        return angle_deg * DEG_TO_RAD;
+    };
+};
+
+class AngularVelocity {
+
+    private:
+    float vel_deg_per_sec;
+
+    public:
+    AngularVelocity(float value_degree_per_sec = 0.0f) {
+        vel_deg_per_sec = value_degree_per_sec;
+    };
+    float radians_per_sec() {
+        return vel_deg_per_sec * DEG_TO_RAD;
+    };
 };
 
 class Orientation {
@@ -99,6 +116,7 @@ public:
     bool initialize();
     void zero(); 
     Orientation orientation();
+    AngularVelocity gyroYAngle();
 };
 
 void Initialize(MPU6050&);
