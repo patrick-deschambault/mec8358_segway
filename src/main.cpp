@@ -42,11 +42,12 @@ const float radius_m = diameter / 2.0;
 const int voltage_max = 24;
 
 // Gains
-float K[4] = {-3, -6, -76, -4};
+// In order: position, velocity, angle, angular velocity
+const float K[4] = {-3, -6, -76, -4};
 
 // Commandes
 float u = 0;
-float pwm[2] = {0.0, 0.0};
+float pwm = 0.0;
 
 // Variables d'etat
 float position = 0.0;
@@ -55,8 +56,8 @@ float angle = 0.0;
 float angular_vel = 0.0;
 
 // Pins d'entree
-const int pwmPin[2] = {10, 11};
-const int dirPin[2] = {8, 9};
+const int pwmPin = 10;
+const int dirPin[2] = {7, 8};
 const int encoderPin = 2;
 
 // Status de l'encodeur optique
@@ -76,8 +77,7 @@ void setup() {
 
     pinMode(dirPin[0], OUTPUT);
     pinMode(dirPin[1], OUTPUT);
-    pinMode(pwmPin[0], OUTPUT);
-    pinMode(pwmPin[1], OUTPUT);
+    pinMode(pwmPin, OUTPUT);
 
     pinMode(encoderPin, INPUT);
     attachInterrupt(digitalPinToInterrupt(encoderPin), increaseEncoderCount, RISING);  // Détection du front montant
@@ -120,14 +120,12 @@ void motorControl() {
 
     // constrain(signal, 0, 255) 
     int pwmValue = constrain(map(abs(u), 0, voltage_max, 0, 255), 0, 255);
-    pwm[0] = pwmValue;
-    pwm[1] = pwmValue;
+    pwm = pwmValue;
 
     digitalWrite(dirPin[0], u <= 0);
     digitalWrite(dirPin[1], u > 0);
 
-    analogWrite(pwmPin[0], pwm[0]);
-    analogWrite(pwmPin[1], pwm[1]);
+    analogWrite(pwmPin, pwm);
 
     encoderCount = 0;
 }
