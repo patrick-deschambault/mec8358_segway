@@ -100,7 +100,7 @@ void readMPU6050() {
 
     Serial.print(pose.roll().degree()); Serial.print("\t");
     Serial.print(pose.pitch().degree()); Serial.print("\t");
-    Serial.println(pose.yaw().degree());
+    Serial.print("\n");
 
 }
 
