@@ -36,8 +36,9 @@ PeriodicTask motorTask(interval_motor_task, motorControl);
 
 
 // Motor properties
-const float resolution = 600;
-const float radius_m = 0.04;
+const float resolution = 240;
+const float diameter = 0.065;
+const float radius_m = diameter / 2.0;
 const int voltage_max = 24;
 
 // Gains
