@@ -23,43 +23,11 @@
 bool blinkState = false;
 
 void readMPU6050();
-void motorControl();
-void increaseEncoderCount();
 
-const int interval_motor_task = 10;
 const int interval_mpu_task = 5;
-
 
 MPU6050Handler mpu;
 PeriodicTask mpuTask(interval_mpu_task, readMPU6050);
-PeriodicTask motorTask(interval_motor_task, motorControl);
-
-
-// Motor properties
-const float resolution = 600;
-const float radius_m = 0.04;
-const int voltage_max = 24;
-
-// Gains
-float K[4] = {-3, -6, -76, -4};
-
-// Commandes
-float u = 0;
-float pwm[2] = {0.0, 0.0};
-
-// Variables d'etat
-float position = 0.0;
-float speed = 0.0;
-float angle = 0.0;
-float angular_vel = 0.0;
-
-// Pins d'entree
-const int pwmPin[2] = {10, 11};
-const int dirPin[2] = {8, 9};
-const int encoderPin = 2;
-
-// Status de l'encodeur optique
-int encoderCount = 0;
 
 void setup() {
     
@@ -90,8 +58,6 @@ void readMPU6050() {
 
     Serial.print(pose.roll().degree()); Serial.print("\t");
     Serial.print(pose.pitch().degree()); Serial.print("\t");
-    Serial.println(pose.yaw().degree());
-
 }
 
 
