@@ -47,7 +47,7 @@ class Angle {
     float angle_deg;
 
     public:
-    Angle(float degree = 0.0f) {
+    Angle(double degree = 0.0) {
         angle_deg = degree;
     };
     float degree() {
