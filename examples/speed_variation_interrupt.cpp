@@ -7,9 +7,9 @@ unsigned long speed;
 int inputVoltage = 0;
 int inputDirection = 1;
 
-const int motorPin = 9;  // Pin pour contrôler la vitesse du moteur
-const int dirPin1 = 12;  // Pin pour la direction 1A
-const int dirPin2 = 13;  // Pin pour la direction 2A
+const int motorPin = 10;  // Pin pour contrôler la vitesse du moteur
+const int dirPin1 = 7;  // Pin pour la direction 1A
+const int dirPin2 = 8;  // Pin pour la direction 2A
 const int encoderPin = 2;  // Pin de l'encodeur optique
 volatile int encoderCount = 0;  // Compteur d'encoches
 unsigned long currentMillis = 0;
@@ -17,10 +17,12 @@ unsigned long previousMillis = 0;  // Pour calculer la vitesse
 unsigned long Start_time = 0;  // Pour plot la vitesse
 unsigned long interval = 50;  // Intervalle pour mesurer la vitesse
 float Motor_speed = 0;  // Vitesse du moteur (en tours/minute)
-float stepsPerRevolution = 655;
+float stepsPerRevolution = 240;
+
+const int voltage_max  = 10;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   pinMode(motorPin, OUTPUT);
   pinMode(dirPin1, OUTPUT);
@@ -32,7 +34,7 @@ void setup() {
 void loop() {
   if (StringComplete){
     parseInput();
-    speed = map(inputVoltage,0,24,0,255);
+    speed = map(inputVoltage,0,voltage_max,0,255);
     InputString = "";
     StringComplete = false;
     Start_time = currentMillis;
