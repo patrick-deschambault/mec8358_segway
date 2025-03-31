@@ -10,6 +10,7 @@ void countEncoder();
 
 void setup() {
 
+  Serial.print("Programme pour compter le nmobre d'encoche dans un tour");
   Serial.begin(115200);
   pinMode(encoderPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(encoderPin), countEncoder, RISING);  // Détection du front montant
