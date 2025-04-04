@@ -57,7 +57,7 @@ void readMPU6050() {
     Orientation pose = mpu.orientation();
 
     Serial.print(pose.roll().degree()); Serial.print("\t");
-    Serial.print(pose.pitch().degree()); Serial.print("\t");
+    Serial.println(pose.pitch().degree()); Serial.print("\t");
 }
 
 
