@@ -7,16 +7,20 @@ unsigned long speed;
 int inputVoltage = 0;
 int inputDirection = 1;
 
-const int motorPin = 10;  // Pin pour contrôler la vitesse du moteur
+const int motorPins[2] = {10, 11};  // Pin pour contrôler la vitesse du moteur
+
 const int dirPin1 = 7;  // Pin pour la direction 1A
 const int dirPin2 = 8;  // Pin pour la direction 2A
-const int encoderPin = 2;  // Pin de l'encodeur optique
-volatile int encoderCount = 0;  // Compteur d'encoches
+
+const int encoderPins[2] = {2, 1};  // Pin de l'encodeur optique
+volatile int encoderCount[2] = {0, 0};  // Compteur d'encoches
+
 unsigned long currentMillis = 0;
 unsigned long previousMillis = 0;  // Pour calculer la vitesse
 unsigned long Start_time = 0;  // Pour plot la vitesse
 unsigned long interval = 50;  // Intervalle pour mesurer la vitesse
-float Motor_speed = 0;  // Vitesse du moteur (en tours/minute)
+float Motor_speeds[2] = {0,0};  // Vitesse du moteur (en tours/minute)
+
 float stepsPerRevolution = 240;
 
 const int voltage_max  = 10;
@@ -24,11 +28,17 @@ const int voltage_max  = 10;
 void setup() {
   Serial.begin(115200);
   
-  pinMode(motorPin, OUTPUT);
+  pinMode(motorPins[0], OUTPUT);
+  pinMode(motorPins[1], OUTPUT);
+
   pinMode(dirPin1, OUTPUT);
   pinMode(dirPin2, OUTPUT);
-  pinMode(encoderPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(encoderPin), countEncoder, RISING);  // Détection du front montant
+
+  pinMode(encoderPins[0], INPUT);
+  pinMode(encoderPins[1], INPUT);
+
+  attachInterrupt(digitalPinToInterrupt(encoderPins[0]), countEncoder_0, RISING);  // Détection du front montant
+  attachInterrupt(digitalPinToInterrupt(encoderPins[1]), countEncoder_1, RISING);  // Détection du front montant
 }
 
 void loop() {
@@ -50,17 +60,27 @@ void loop() {
     Serial.println("Direction entrée invalide");
   }
   // Contrôler la vitesse
-  analogWrite(motorPin, speed);  // PWM pour contrôler la vitesse du moteur
+  analogWrite(motorPins[0], speed);  // PWM pour contrôler la vitesse du moteur
+  analogWrite(motorPins[1], speed);  // PWM pour contrôler la vitesse du moteur
+
 
    // Calculer la vitesse du moteur chaque seconde
   currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
+
     previousMillis = currentMillis;
-    Motor_speed = (encoderCount / stepsPerRevolution) * (60000.0/interval);  // inserer le nombre de steps par tour ici 
+    Motor_speeds[0] = (encoderCount[0] / stepsPerRevolution) * (60000.0/interval);  // inserer le nombre de steps par tour ici 
+    Motor_speeds[1] = (encoderCount[1] / stepsPerRevolution) * (60000.0/interval);  // inserer le nombre de steps par tour ici 
+
     Serial.print((currentMillis - Start_time)/1000.0);
-    Serial.print(",");
-    Serial.println(Motor_speed);
-    encoderCount = 0;  // Réinitialiser le compteur d'encoches
+    Serial.print("Left motor speed: ");
+    Serial.println(Motor_speeds[0]);
+    Serial.print(",  ");
+    Serial.print("Right motor speed: ");
+    Serial.println(Motor_speeds[1]);
+
+    encoderCount[0] = 0;  // Réinitialiser le compteur d'encoches
+    encoderCount[1] = 0;
   }
 }
 
@@ -94,6 +114,10 @@ void parseInput() {
 }
 
 // Fonction d'interruption pour compter les encoches
-void countEncoder() {
-  encoderCount++;
+void countEncoder_0() {
+  encoderCount[0]++;
+}
+
+void countEncoder_1() {
+  encoderCount[1]++;
 }
