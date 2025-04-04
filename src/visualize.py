@@ -1,45 +1,39 @@
 import serial
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+import pyqtgraph as pg
+from PyQt5 import QtWidgets, QtCore
 
-# Configuration du port série (remplace 'COM4' par ton port si besoin)
-ser = serial.Serial('COM4', 115200, timeout=1)
+# Remplace 'COM3' par ton port série
+ser = serial.Serial('COM4', 115200)
 
-# Initialisation du graphique
-fig, ax = plt.subplots()
-ax.set_ylim(-180, 180)  # Plage des angles
-ax.set_xlim(0, 100)  # Nombre de points affichés
-roll_data, pitch_data, yaw_data = [], [], []
-x_data = list(range(100))
+app = QtWidgets.QApplication([])
+win = pg.GraphicsLayoutWidget(title="MPU6050 - Roll et Pitch")
+plot = win.addPlot(title="Roll et Pitch")
+curve_roll = plot.plot(pen='r', name="Roll")
+curve_pitch = plot.plot(pen='b', name="Pitch")
+data_roll = []
+data_pitch = []
 
-# Fonction de mise à jour du graphique
-def update(frame):
+def update():
+    global data_roll, data_pitch
+    line = ser.readline().decode().strip()
     try:
-        line = ser.readline().decode().strip()  # Lire une ligne et nettoyer
-        values = line.split()  # Séparer les valeurs par espace
-        
-        if len(values) == 3:  # Vérifier qu'on a bien 3 valeurs
-            roll, pitch, yaw = map(float, values)  # Convertir en float
-            roll_data.append(roll)
-            pitch_data.append(pitch)
-            yaw_data.append(yaw)
-            
-            if len(roll_data) > 100:  # Garder les 100 dernières valeurs
-                roll_data.pop(0)
-                pitch_data.pop(0)
-                yaw_data.pop(0)
-            
-            ax.clear()
-            ax.set_ylim(-180, 180)
-            ax.set_xlim(0, 100)
-            ax.plot(x_data[-len(roll_data):], roll_data, label="Roll", color='r')
-            ax.plot(x_data[-len(pitch_data):], pitch_data, label="Pitch", color='g')
-            ax.plot(x_data[-len(yaw_data):], yaw_data, label="Yaw", color='b')
-            ax.legend()
+        roll, pitch = map(float, line.split(","))
+        data_roll.append(roll)
+        data_pitch.append(pitch)
+
+        # Limite la taille des listes à 200 points pour éviter de surcharger la mémoire
+        if len(data_roll) > 200:
+            data_roll = data_roll[-200:]
+            data_pitch = data_pitch[-200:]
+
+        curve_roll.setData(data_roll)
+        curve_pitch.setData(data_pitch)
     except Exception as e:
-        print(f"Erreur : {e}")  # Debug si problème
+        print("Erreur:", e)
 
-# Correction du warning
-ani = animation.FuncAnimation(fig, update, interval=50, cache_frame_data=False)
+timer = QtCore.QTimer()
+timer.timeout.connect(update)
+timer.start(2)
 
-plt.show()
+win.show()
+app.exec_()
