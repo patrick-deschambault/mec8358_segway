@@ -25,17 +25,19 @@
 #define LED_PIN 13
 bool blinkState = false;
 
-void readMPU6050();
-void motorControl();
+void main_loop();
 void increaseEncoderCount();
+void applyForce(float);
+float computeSpeedPID(float, float , float);
+float computeAnglePID(float, float, float );
+float steps_per_second(const int , const int, const int );
+float meters_per_second(const int , const int , const int , const int );
 
-const int interval_motor_task = 10;
-const int interval_mpu_task = 5;
 
-Orientation pose;
+const int interval = 10;
+
 MPU6050Handler mpu;
-PeriodicTask mpuTask(interval_mpu_task, readMPU6050);
-PeriodicTask motorTask(interval_motor_task, motorControl);
+PeriodicTask main_task(interval, main_loop);
 
 
 // Motor properties
@@ -73,8 +75,10 @@ float angle = 0.0;
 float angular_vel = 0.0;
 
 
+float motor_speeds[2] = {0.0, 0.0};
+int pwmPins[2] = {10, 11};  // Pin pour contrôler la vitesse du moteur
+
 const int dirPins[2] = {7, 8};
-const int pwmPins[2] = {10, 11};  // Pin pour contrôler la vitesse du moteur
 const int encoderPins[2] = {2, 3};  // Pin de l'encodeur optique
 volatile int encoderCount[2] = {0, 0};  // Compteur d'encoches
 
@@ -110,28 +114,33 @@ void setup() {
 
 void loop() {
 
-    mpuTask.update();
-    motorTask.update();
+    main_task.update();
 
     // blink LED to indicate activity
     blinkState = !blinkState;
     digitalWrite(LED_PIN, blinkState);
 }
 
-void readMPU6050() {
+void main_loop() {
 
-    pose = mpu.orientation();
+    Orientation pose = mpu.orientation();
+
+    // Implementation of PID controls
+    motor_speeds[0] = meters_per_second(encoderCount[0], resolution, interval, diameter);
+    motor_speeds[1] = meters_per_second(encoderCount[1], resolution, interval, diameter);
+
+    float average_speed = (motor_speeds[0] + motor_speeds[1]) / 2.0;
+
+    float target_force = computeAnglePID(pose.roll().degree(), interval, average_speed);
+
+    float forceCmd = computeSpeedPID(target_force, average_speed, interval);
+
+    applyForce(forceCmd);
 
     #ifdef DEBUG_MODE
         Serial.print(pose.roll().degree()); Serial.print("\t");
-        Serial.print(pose.pitch().degree()); Serial.print("\t");
+        Serial.println(pose.pitch().degree());
     #endif
-}
-
-void motorControl() {
-
-    // Implementation of PID controls
-
 
 }
 
@@ -158,7 +167,40 @@ void countEncoder_0() {
     return steps_per_sec * (PI * diameter) / stepsPerRevolution;
   }
 
+  float computeAnglePID(float angle, float dt, float vitesseLineaire) {
+    // Calcul de l'erreur en tenant compte de la vitesse linéaire
+    float gain_vitesse = 10; // Ajustez ce gain selon vos besoins
+    float error = 0 - (angle - (vitesseLineaire * gain_vitesse));  // Cible = 0°
+  
+    pidAngle.integral += error * dt;
+    pidAngle.integral = constrain(pidAngle.integral, -5, 5);
+  
+    float deriv = (error - pidAngle.lastError) / dt;
+    pidAngle.lastError = error;
+  
+    return constrain(pidAngle.kp * error + 
+                    pidAngle.ki * pidAngle.integral + 
+                    pidAngle.kd * deriv, -10, 10);
+  }
 
+  float computeSpeedPID(float targetForce, float vitesseLineaire, float dt) {
+    
+    float gain_vitesse = 10; // Ajustez ce gain selon vos besoins
+
+    // Calcul de l'erreur pour le PID de vitesse
+    float error = targetForce - (vitesseLineaire * gain_vitesse); // Cible = vitesse linéaire souhaitée
+  
+    pidSpeed.integral += error * dt;
+    pidSpeed.integral = constrain(pidSpeed.integral, -50, 50);
+  
+    float deriv = (error - pidSpeed.lastError) / dt;
+    pidSpeed.lastError = error;
+  
+    return constrain(pidSpeed.kp * error + 
+                     pidSpeed.ki * pidSpeed.integral + 
+                     pidSpeed.kd * deriv, -MAX_VOLTAGE, MAX_VOLTAGE);
+  }
+  
   void applyForce(float force) {
     // Définir un facteur de conversion de force à tension
     float forceToVoltageFactor = 0.198; // Ajustez ce facteur selon votre configuration
