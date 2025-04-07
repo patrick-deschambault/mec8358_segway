@@ -118,39 +118,49 @@ void loop() {
     blinkState = !blinkState;
     digitalWrite(LED_PIN, blinkState);
 }
-
+unsigned long lastTime = 0;
+const unsigned long speedCalcInterval = 100;
 void main_loop() {
 
     Orientation pose = mpu.orientation();
 
-    // Implementation of PID controls
-    motor_speeds[0] = meters_per_second(encoderCount[0], resolution, interval, diameter);
-    motor_speeds[1] = meters_per_second(encoderCount[1], resolution, interval, diameter);
+    // Vérifiez si l'intervalle de calcul de la vitesse est écoulé
+    unsigned long currentTime = millis();
+    if (currentTime - lastTime >= speedCalcInterval) {
+      
+        // Calculer la vitesse à partir des compteurs d'encodeur
+        motor_speeds[0] = meters_per_second(encoderCount[0], resolution, speedCalcInterval, diameter);
+        motor_speeds[1] = meters_per_second(encoderCount[1], resolution, speedCalcInterval, diameter);
 
-    float average_speed = (motor_speeds[0] + motor_speeds[1]) / 2.0;
+        // Calculer la vitesse moyenne
+        float average_speed = (motor_speeds[0] + motor_speeds[1]) / 2.0;
 
-    float target_force = computeAnglePID(pose.roll().degree(), interval, average_speed);
+        // Réinitialiser les compteurs d'encodeur après le calcul de la vitesse
+        encoderCount[0] = 0;
+        encoderCount[1] = 0;
 
-    float forceCmd = computeSpeedPID(target_force, average_speed, interval);
+        // Calculer la force cible et appliquer la commande
+        float target_force = computeAnglePID(pose.roll().degree(), speedCalcInterval / 1000.0, average_speed);
+        float forceCmd = computeSpeedPID(target_force, average_speed, speedCalcInterval / 1000.0);
+        applyForce(forceCmd);
 
-    applyForce(forceCmd);
+        // Mettre à jour le temps du dernier calcul
+        lastTime = currentTime;
 
-    #ifdef DEBUG_MODE
-        Serial.print(pose.roll().degree()); Serial.print("\t");
-        Serial.print(pose.pitch().degree()); Serial.print("\t");
-        Serial.print(motor_speeds[0]); Serial.print("\t");
-        Serial.print(motor_speeds[1]); Serial.print("\t");
-        Serial.print(motor_speeds[0]); Serial.print("\t");
-        Serial.print(motor_speeds[1]); Serial.print("\t");
-        Serial.print(average_speed); Serial.print("\t");
-        Serial.print(target_force); Serial.print("\t");
-        Serial.print(forceCmd); Serial.print("\t");
-        Serial.println(pwm);
-    #endif
-
-    encoderCount[0] = 0;
-    encoderCount[1] = 0;
+        #ifdef DEBUG_MODE
+            Serial.print(pose.roll().degree()); Serial.print("\t");
+            Serial.print(pose.pitch().degree()); Serial.print("\t");
+            Serial.print(motor_speeds[0]); Serial.print("\t");
+            Serial.print(motor_speeds[1]); Serial.print("\t");
+            Serial.print(average_speed); Serial.print("\t");
+            Serial.print(target_force); Serial.print("\t");
+            Serial.print(forceCmd); Serial.print("\t");
+            Serial.println(pwm);
+        #endif
+    }
 }
+
+
 
 // Fonction d'interruption pour compter les encoches
 void countEncoder_0() {
@@ -181,14 +191,14 @@ void countEncoder_0() {
     float error = 0 - (angle - (vitesseLineaire * gain_vitesse));  // Cible = 0°
   
     pidAngle.integral += error * dt;
-    pidAngle.integral = constrain(pidAngle.integral, -5, 5);
+    //pidAngle.integral = constrain(pidAngle.integral, -5, 5);
   
     float deriv = (error - pidAngle.lastError) / dt;
     pidAngle.lastError = error;
   
-    return constrain(pidAngle.kp * error + 
+    return pidAngle.kp * error + 
                     pidAngle.ki * pidAngle.integral + 
-                    pidAngle.kd * deriv, -10, 10);
+                    pidAngle.kd * deriv;
   }
 
   float computeSpeedPID(float targetForce, float vitesseLineaire, float dt) {
@@ -199,19 +209,19 @@ void countEncoder_0() {
     float error = targetForce - (vitesseLineaire * gain_vitesse); // Cible = vitesse linéaire souhaitée
   
     pidSpeed.integral += error * dt;
-    pidSpeed.integral = constrain(pidSpeed.integral, -50, 50);
+    //pidSpeed.integral = constrain(pidSpeed.integral, -50, 50);
   
     float deriv = (error - pidSpeed.lastError) / dt;
     pidSpeed.lastError = error;
   
-    return constrain(pidSpeed.kp * error + 
+    return pidSpeed.kp * error + 
                      pidSpeed.ki * pidSpeed.integral + 
-                     pidSpeed.kd * deriv, -MAX_VOLTAGE, MAX_VOLTAGE);
+                     pidSpeed.kd * deriv;
   }
   
   void applyForce(float force) {
     // Définir un facteur de conversion de force à tension
-    float forceToVoltageFactor = 25.0; // Ajustez ce facteur selon votre configuration
+    float forceToVoltageFactor = 30/MAX_VOLTAGE; // 30N de force à peine charge donc 30N / volt max
   
     // Convertir la force en tension
     float voltage = force * forceToVoltageFactor; // En volts
