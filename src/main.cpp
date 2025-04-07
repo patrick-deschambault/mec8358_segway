@@ -133,6 +133,8 @@ void readMPU6050() {
 void motorControl() {
 
     // Implementation of PID controls
+
+
 }
 
 // Fonction d'interruption pour compter les encoches
@@ -143,3 +145,22 @@ void countEncoder_0() {
   void countEncoder_1() {
     encoderCount[1]++;
   }
+
+  // Provide Steps per seconds
+  float steps_per_second(const int encoderCount, const int stepsPerRevolution, const int interval) {
+    float speed = (encoderCount / stepsPerRevolution) * (60000.0 / interval);
+    return speed;
+  }
+
+  // Provide meter per second
+  float meters_per_second(const int encoderCount, const int stepsPerRevolution, const int interval, const int diameter) {
+
+    float steps_per_sec = steps_per_second(encoderCount, stepsPerRevolution, interval);
+
+    return steps_per_sec * (PI * diameter) / stepsPerRevolution;
+  }
+
+
+
+
+
