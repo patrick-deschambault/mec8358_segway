@@ -19,6 +19,9 @@
 // for a human.
 //#define OUTPUT_BINARY_ACCELGYRO
 
+// Comment this line if we do not want to print on serial port.
+#define DEBUG_MODE
+
 #define LED_PIN 13
 bool blinkState = false;
 
@@ -29,7 +32,7 @@ void increaseEncoderCount();
 const int interval_motor_task = 10;
 const int interval_mpu_task = 5;
 
-
+Orientation pose;
 MPU6050Handler mpu;
 PeriodicTask mpuTask(interval_mpu_task, readMPU6050);
 PeriodicTask motorTask(interval_motor_task, motorControl);
@@ -41,9 +44,23 @@ const float diameter = 0.065;
 const float radius_m = diameter / 2.0;
 const int voltage_max = 24;
 
-// Gains
-// In order: position, velocity, angle, angular velocity
-const float K[4] = {-3, -6, -76, -4};
+// ========== VARIABLES PID ==========
+struct PIDAngle {
+    float kp = 15.0;
+    float ki = 2.0;
+    float kd = 0.8;
+    float integral = 0;
+    float lastError = 0;
+} pidAngle;
+
+struct PIDSpeed {
+    float kp = 0.3;
+    float ki = 0.05;
+    float kd = 0.1;
+    float integral = 0;
+    float lastError = 0;
+} pidSpeed;
+  
 
 // Commandes
 float u = 0;
@@ -55,13 +72,14 @@ float speed = 0.0;
 float angle = 0.0;
 float angular_vel = 0.0;
 
-// Pins d'entree
-const int pwmPin = 10;
-const int dirPin[2] = {7, 8};
-const int encoderPin = 2;
 
-// Status de l'encodeur optique
-int encoderCount = 0;
+const int dirPins[2] = {7, 8};
+const int pwmPins[2] = {10, 11};  // Pin pour contrôler la vitesse du moteur
+const int encoderPins[2] = {2, 3};  // Pin de l'encodeur optique
+volatile int encoderCount[2] = {0, 0};  // Compteur d'encoches
+
+void countEncoder_0();
+void countEncoder_1();
 
 void setup() {
     
@@ -75,12 +93,17 @@ void setup() {
     // configure Arduino LED pin for output
     pinMode(LED_PIN, OUTPUT);
 
-    pinMode(dirPin[0], OUTPUT);
-    pinMode(dirPin[1], OUTPUT);
-    pinMode(pwmPin, OUTPUT);
+    pinMode(dirPins[0], OUTPUT);
+    pinMode(dirPins[1], OUTPUT);
 
-    pinMode(encoderPin, INPUT);
-    attachInterrupt(digitalPinToInterrupt(encoderPin), increaseEncoderCount, RISING);  // Détection du front montant
+    pinMode(pwmPins[0], OUTPUT);
+    pinMode(pwmPins[1], OUTPUT);
+
+    pinMode(encoderPins[0], INPUT);
+    pinMode(encoderPins[1], INPUT);
+
+    attachInterrupt(digitalPinToInterrupt(encoderPins[0]), countEncoder_0, RISING);  // Détection du front montant
+    attachInterrupt(digitalPinToInterrupt(encoderPins[1]), countEncoder_1, RISING);  // Détection du front montant
 
     Serial.println("Setup Completed!");
 }
@@ -97,39 +120,26 @@ void loop() {
 
 void readMPU6050() {
 
-    Orientation pose = mpu.orientation();
+    pose = mpu.orientation();
 
-    Serial.print(pose.roll().degree()); Serial.print("\t");
-    Serial.print(pose.pitch().degree()); Serial.print("\t");
-    Serial.println(pose.yaw().degree());
+    #ifdef DEBUG_MODE
+        Serial.print(pose.roll().degree()); Serial.print("\t");
+        Serial.print(pose.pitch().degree()); Serial.print("\t");
+    #endif
+
 
 }
 
 void motorControl() {
 
-    position = position + ((encoderCount*2*PI*radius_m) / (resolution));
-
-    speed = ((float)encoderCount * 1000.0 * 2.0 * PI * radius_m) / (resolution * interval_motor_task);
-
-    angle = mpu.orientation().pitch().to_radians();
-
-    angular_vel = mpu.gyroYAngle().radians_per_sec();
-
-    // Calcul de la commande
-    u = K[0]*position + K[1]*speed + K[2]*angle + K[3]*angular_vel;
-
-    // constrain(signal, 0, 255) 
-    int pwmValue = constrain(map(abs(u), 0, voltage_max, 0, 255), 0, 255);
-    pwm = pwmValue;
-
-    digitalWrite(dirPin[0], u <= 0);
-    digitalWrite(dirPin[1], u > 0);
-
-    analogWrite(pwmPin, pwm);
-
-    encoderCount = 0;
+    // Implementation of PID controls
 }
 
-void increaseEncoderCount() {
-    encoderCount++;
-}
+// Fonction d'interruption pour compter les encoches
+void countEncoder_0() {
+    encoderCount[0]++;
+  }
+  
+  void countEncoder_1() {
+    encoderCount[1]++;
+  }
