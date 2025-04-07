@@ -42,7 +42,8 @@ PeriodicTask motorTask(interval_motor_task, motorControl);
 const float resolution = 240;
 const float diameter = 0.065;
 const float radius_m = diameter / 2.0;
-const int voltage_max = 24;
+const float MAX_VOLTAGE = 12.0;
+const float MAX_PWM = 255.0;
 
 // ========== VARIABLES PID ==========
 struct PIDAngle {
@@ -158,6 +159,22 @@ void countEncoder_0() {
   }
 
 
-
+  void applyForce(float force) {
+    // Définir un facteur de conversion de force à tension
+    float forceToVoltageFactor = 0.198; // Ajustez ce facteur selon votre configuration
+  
+    // Convertir la force en tension
+    float voltage = force * forceToVoltageFactor; // En volts
+    int pwm = map(constrain(voltage, 0, MAX_VOLTAGE), 0, MAX_VOLTAGE, 0, MAX_PWM); // Convertir en PWM
+  
+    // Déterminer la direction
+    bool dir = voltage > 0;
+    digitalWrite(dirPins[0], dir);
+    digitalWrite(dirPins[1], !dir); // Inverser un moteur selon montage
+    
+    // Appliquer le PWM aux moteurs - A tester
+    analogWrite(pwmPins[0], pwm - 30);
+    analogWrite(pwmPins[1], pwm);
+  }
 
 
