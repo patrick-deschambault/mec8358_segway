@@ -20,7 +20,7 @@
 //#define OUTPUT_BINARY_ACCELGYRO
 
 // Comment this line if we do not want to print on serial port.
-#define DEBUG_MODE
+#define DEBUG_MODE 1
 
 #define LED_PIN 13
 bool blinkState = false;
@@ -32,7 +32,6 @@ float computeSpeedPID(float, float , float);
 float computeAnglePID(float, float, float );
 float steps_per_second(const int , const int, const int );
 float meters_per_second(const int , const int , const int , const int );
-
 
 const int interval = 10;
 
@@ -65,8 +64,7 @@ struct PIDAngle {
   } pidSpeed;
 
 // Commandes
-float u = 0;
-float pwm = 0.0;
+int pwm = 0;
 
 // Variables d'etat
 float position = 0.0;
@@ -139,9 +137,19 @@ void main_loop() {
 
     #ifdef DEBUG_MODE
         Serial.print(pose.roll().degree()); Serial.print("\t");
-        Serial.println(pose.pitch().degree());
+        Serial.print(pose.pitch().degree()); Serial.print("\t");
+        Serial.print(motor_speeds[0]); Serial.print("\t");
+        Serial.print(motor_speeds[1]); Serial.print("\t");
+        Serial.print(motor_speeds[0]); Serial.print("\t");
+        Serial.print(motor_speeds[1]); Serial.print("\t");
+        Serial.print(average_speed); Serial.print("\t");
+        Serial.print(target_force); Serial.print("\t");
+        Serial.print(forceCmd); Serial.print("\t");
+        Serial.println(pwm);
     #endif
 
+    encoderCount[0] = 0;
+    encoderCount[1] = 0;
 }
 
 // Fonction d'interruption pour compter les encoches
@@ -203,11 +211,11 @@ void countEncoder_0() {
   
   void applyForce(float force) {
     // Définir un facteur de conversion de force à tension
-    float forceToVoltageFactor = 0.198; // Ajustez ce facteur selon votre configuration
+    float forceToVoltageFactor = 25.0; // Ajustez ce facteur selon votre configuration
   
     // Convertir la force en tension
     float voltage = force * forceToVoltageFactor; // En volts
-    int pwm = map(constrain(voltage, 0, MAX_VOLTAGE), 0, MAX_VOLTAGE, 0, MAX_PWM); // Convertir en PWM
+    pwm = map(voltage, 0, MAX_VOLTAGE, 0, MAX_PWM); // Convertir en PWM
   
     // Déterminer la direction
     bool dir = voltage > 0;
@@ -215,7 +223,7 @@ void countEncoder_0() {
     digitalWrite(dirPins[1], !dir); // Inverser un moteur selon montage
     
     // Appliquer le PWM aux moteurs - A tester
-    analogWrite(pwmPins[0], pwm - 30);
+    analogWrite(pwmPins[0], pwm);
     analogWrite(pwmPins[1], pwm);
   }
 
