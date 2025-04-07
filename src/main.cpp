@@ -46,21 +46,20 @@ const int voltage_max = 24;
 
 // ========== VARIABLES PID ==========
 struct PIDAngle {
-    float kp = 15.0;
-    float ki = 2.0;
-    float kd = 0.8;
+    float kp = 0.647927870199885; // Coefficient proportionnel
+    float ki = 7.29611644063924;   // Coefficient intégral
+    float kd = -0.000186631109022805; // Coefficient dérivé
     float integral = 0;
     float lastError = 0;
-} pidAngle;
-
-struct PIDSpeed {
-    float kp = 0.3;
-    float ki = 0.05;
-    float kd = 0.1;
-    float integral = 0;
-    float lastError = 0;
-} pidSpeed;
+  } pidAngle;
   
+  struct PIDSpeed {
+    float kp = -0.0182659464642925; // Coefficient proportionnel
+    float ki = -0.0038335764114082;  // Coefficient intégral
+    float kd = -0.0193375392442425;  // Coefficient dérivé
+    float integral = 0;
+    float lastError = 0;
+  } pidSpeed;
 
 // Commandes
 float u = 0;
@@ -126,8 +125,6 @@ void readMPU6050() {
         Serial.print(pose.roll().degree()); Serial.print("\t");
         Serial.print(pose.pitch().degree()); Serial.print("\t");
     #endif
-
-
 }
 
 void motorControl() {
