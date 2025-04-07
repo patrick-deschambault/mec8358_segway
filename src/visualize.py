@@ -17,7 +17,7 @@ def update():
     global data_roll, data_pitch
     line = ser.readline().decode().strip()
     try:
-        roll, pitch = map(float, line.split(","))
+        roll, pitch = map(float, line.split("\t"))
         data_roll.append(roll)
         data_pitch.append(pitch)
 
