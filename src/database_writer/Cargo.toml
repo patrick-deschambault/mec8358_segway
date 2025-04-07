@@ -1,0 +1,11 @@
+[package]
+name = "database_writer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-serial = "5"
+influxdb = { version = "0.5", features = ["derive", "reqwest-client"] }
+chrono = "0.4"
+anyhow = "1.0.97" 
