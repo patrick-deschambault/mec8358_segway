@@ -48,17 +48,17 @@ const float MAX_PWM = 255.0;
 
 // ========== VARIABLES PID ==========
 struct PIDAngle {
-    float kp = 0.647927870199885; // Coefficient proportionnel
-    float ki = 7.29611644063924;   // Coefficient intégral
-    float kd = -0.000186631109022805; // Coefficient dérivé
+    float kp = 1.15; // Coefficient proportionnel
+    float ki = 7.0;   // Coefficient intégral
+    float kd = 0.05; // Coefficient dérivé
     float integral = 0;
     float lastError = 0;
   } pidAngle;
   
   struct PIDSpeed {
-    float kp = -0.0182659464642925; // Coefficient proportionnel
-    float ki = -0.0038335764114082;  // Coefficient intégral
-    float kd = -0.0193375392442425;  // Coefficient dérivé
+    float kp = 0.15; // Coefficient proportionnel
+    float ki = 0.001;  // Coefficient intégral
+    float kd = 0.001;  // Coefficient dérivé
     float integral = 0;
     float lastError = 0;
   } pidSpeed;
@@ -84,7 +84,7 @@ void countEncoder_0();
 void countEncoder_1();
 
 void setup() {
-    
+    Serial.begin(115200);
     Serial.println("Setup Started!");
     
     if (!mpu.initialize()) {
@@ -119,36 +119,40 @@ void loop() {
     digitalWrite(LED_PIN, blinkState);
 }
 unsigned long lastTime = 0;
-const unsigned long speedCalcInterval = 100;
+const unsigned long speedCalcInterval = 10;
 void main_loop() {
-
+    
     Orientation pose = mpu.orientation();
 
     // Vérifiez si l'intervalle de calcul de la vitesse est écoulé
     unsigned long currentTime = millis();
     if (currentTime - lastTime >= speedCalcInterval) {
-      
-        // Calculer la vitesse à partir des compteurs d'encodeur
+        Serial.print("Counts: "); Serial.print(encoderCount[0]); Serial.print(" | "); Serial.println(encoderCount[1]);
+
         motor_speeds[0] = meters_per_second(encoderCount[0], resolution, speedCalcInterval, diameter);
         motor_speeds[1] = meters_per_second(encoderCount[1], resolution, speedCalcInterval, diameter);
 
-        // Calculer la vitesse moyenne
         float average_speed = (motor_speeds[0] + motor_speeds[1]) / 2.0;
 
-        // Réinitialiser les compteurs d'encodeur après le calcul de la vitesse
         encoderCount[0] = 0;
         encoderCount[1] = 0;
 
-        // Calculer la force cible et appliquer la commande
-        float target_force = computeAnglePID(pose.roll().degree(), speedCalcInterval / 1000.0, average_speed);
+        // Lire l'angle
+        float rollAngle = pose.roll().degree();
+
+
+        // PID angle -> target force
+        float target_force = computeAnglePID(rollAngle, speedCalcInterval / 1000.0, average_speed);
+
+        // PID vitesse -> force corrigée
         float forceCmd = computeSpeedPID(target_force, average_speed, speedCalcInterval / 1000.0);
+
         applyForce(forceCmd);
 
-        // Mettre à jour le temps du dernier calcul
         lastTime = currentTime;
 
         #ifdef DEBUG_MODE
-            Serial.print(pose.roll().degree()); Serial.print("\t");
+            Serial.print(rollAngle); Serial.print("\t");
             Serial.print(pose.pitch().degree()); Serial.print("\t");
             Serial.print(motor_speeds[0]); Serial.print("\t");
             Serial.print(motor_speeds[1]); Serial.print("\t");
@@ -159,6 +163,7 @@ void main_loop() {
         #endif
     }
 }
+
 
 
 
@@ -173,25 +178,24 @@ void countEncoder_0() {
 
   // Provide Steps per seconds
   float steps_per_second(const int encoderCount, const int stepsPerRevolution, const int interval) {
-    float speed = (encoderCount / stepsPerRevolution) * (60000.0 / interval);
+    float speed = ((float)encoderCount / (float)stepsPerRevolution) * (60000.0 / interval);
     return speed;
-  }
+}
 
   // Provide meter per second
-  float meters_per_second(const int encoderCount, const int stepsPerRevolution, const int interval, const int diameter) {
+  float meters_per_second(const int encoderCount, const int stepsPerRevolution, const int interval, const float diameter){
 
     float steps_per_sec = steps_per_second(encoderCount, stepsPerRevolution, interval);
-
     return steps_per_sec * (PI * diameter) / stepsPerRevolution;
-  }
+}
 
   float computeAnglePID(float angle, float dt, float vitesseLineaire) {
     // Calcul de l'erreur en tenant compte de la vitesse linéaire
-    float gain_vitesse = 10; // Ajustez ce gain selon vos besoins
+    float gain_vitesse = 15; // Ajustez ce gain selon vos besoins
     float error = 0 - (angle - (vitesseLineaire * gain_vitesse));  // Cible = 0°
   
     pidAngle.integral += error * dt;
-    //pidAngle.integral = constrain(pidAngle.integral, -5, 5);
+    pidAngle.integral = constrain(pidAngle.integral, -10, 10);
   
     float deriv = (error - pidAngle.lastError) / dt;
     pidAngle.lastError = error;
@@ -203,13 +207,13 @@ void countEncoder_0() {
 
   float computeSpeedPID(float targetForce, float vitesseLineaire, float dt) {
     
-    float gain_vitesse = 10; // Ajustez ce gain selon vos besoins
+    float gain_vitesse = 35; // Ajustez ce gain selon vos besoins
 
     // Calcul de l'erreur pour le PID de vitesse
     float error = targetForce - (vitesseLineaire * gain_vitesse); // Cible = vitesse linéaire souhaitée
   
     pidSpeed.integral += error * dt;
-    //pidSpeed.integral = constrain(pidSpeed.integral, -50, 50);
+    pidSpeed.integral = constrain(pidSpeed.integral, -10, 10);
   
     float deriv = (error - pidSpeed.lastError) / dt;
     pidSpeed.lastError = error;
@@ -220,21 +224,26 @@ void countEncoder_0() {
   }
   
   void applyForce(float force) {
+
     // Définir un facteur de conversion de force à tension
-    float forceToVoltageFactor = 30/MAX_VOLTAGE; // 30N de force à peine charge donc 30N / volt max
-  
+    float forceToVoltageFactor = 40 / MAX_VOLTAGE; // 30N de force à pleine charge donc 30N / volt max
+
     // Convertir la force en tension
     float voltage = force * forceToVoltageFactor; // En volts
     pwm = map(voltage, 0, MAX_VOLTAGE, 0, MAX_PWM); // Convertir en PWM
-  
+    
     // Déterminer la direction
     bool dir = voltage > 0;
     digitalWrite(dirPins[0], dir);
-    digitalWrite(dirPins[1], !dir); // Inverser un moteur selon montage
+    digitalWrite(dirPins[1], !dir);
     
-    // Appliquer le PWM aux moteurs - A tester
-    analogWrite(pwmPins[0], pwm);
+    // Calculer le PWM, en prenant la valeur absolue de la tension
+    voltage = abs(voltage);
+    voltage = constrain(voltage, 0, MAX_VOLTAGE);
+    pwm = map(voltage, 0, MAX_VOLTAGE, 0, MAX_PWM);
+    
+    // Appliquer le PWM
+    analogWrite(pwmPins[0], pwm * 0.98);
     analogWrite(pwmPins[1], pwm);
-  }
-
+}
 
